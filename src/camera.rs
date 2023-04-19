@@ -1,5 +1,4 @@
 use bevy::{core_pipeline::bloom::BloomSettings, prelude::*};
-
 use crate::player::{FallState, JumpState, Player, INITIAL_PLAYER_POS};
 
 pub const INITIAL_CAMERA_POS: Vec3 = Vec3::new(-5.0, 8.0, 5.0);
@@ -20,8 +19,7 @@ impl Default for CameraMoveState {
 }
 
 pub fn setup_camera(mut commands: Commands) {
-    // 方向光
-    // TODO 阴影
+
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
             illuminance: 15000.0,
@@ -32,12 +30,7 @@ pub fn setup_camera(mut commands: Commands) {
         ..default()
     });
 
-    // see issue https://github.com/bevyengine/bevy/issues/7352
-    let hdr = if cfg!(target_arch = "wasm32") {
-        false
-    } else {
-        true
-    };
+    let hdr = true;
 
     // camera
     let mut camera_command = commands.spawn((Camera3dBundle {
@@ -48,11 +41,8 @@ pub fn setup_camera(mut commands: Commands) {
         },
         ..default()
     },));
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        camera_command.insert(BloomSettings::default());
-    }
+camera_command.insert(BloomSettings::default());
+    
 }
 
 pub fn setup_ground(
@@ -60,7 +50,7 @@ pub fn setup_ground(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // 地面
+    // ground
     commands.spawn(PbrBundle {
         mesh: meshes.add(Mesh::from(shape::Plane { size: 1000000.0 })),
         material: materials.add(Color::rgb(0.95, 0.87, 0.88).into()),
@@ -68,7 +58,7 @@ pub fn setup_ground(
     });
 }
 
-// 相机跟随玩家
+// camera follow player
 pub fn move_camera(
     q_player: Query<&Transform, With<Player>>,
     mut q_camera: Query<&mut Transform, (With<Camera>, Without<Player>)>,
@@ -76,13 +66,13 @@ pub fn move_camera(
     jump_state: Res<JumpState>,
     fall_state: Res<FallState>,
 ) {
-    // 跳跃或摔落期间不移动相机
+    // jump and fall process don't move camera
     if jump_state.completed && fall_state.completed {
         let player = q_player.single();
         let mut camera = q_camera.single_mut();
         let camera_destination = INITIAL_CAMERA_POS + player.translation;
 
-        // 检测player是否移动，重新计算step
+        // check if player move
         if camera_move_state.player_pos.distance(player.translation) > 0.1 {
             let delta = camera_destination - camera.translation;
             camera_move_state.step = 0.05 * delta;

@@ -1,5 +1,4 @@
 use std::time::Duration;
-
 use crate::camera::*;
 use crate::platform::*;
 use crate::player::*;
@@ -11,15 +10,10 @@ mod camera;
 mod platform;
 mod player;
 mod ui;
-
 fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins);
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        app.add_plugin(HanabiPlugin);
-    }
+    app.add_plugin(HanabiPlugin);
 
     let mut game_playing_set_on_update = SystemSet::on_update(GameState::Playing)
         .with_system(prepare_jump)
@@ -35,18 +29,16 @@ fn main() {
         .with_system(sync_score_up_effect)
         .with_system(shift_score_up_effect);
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        game_playing_set_on_update =
-            game_playing_set_on_update.with_system(animate_accumulation_particle_effect);
-    }
+    // update when accumulate
+    game_playing_set_on_update =
+        game_playing_set_on_update.with_system(animate_accumulation_particle_effect);
 
     app.add_state(GameState::MainMenu)
-        .insert_resource(CameraMoveState::default())
         .insert_resource(Score(0))
         .insert_resource(Accumulator(None))
         .insert_resource(JumpState::default())
         .insert_resource(FallState::default())
+        .insert_resource(CameraMoveState::default())
         .insert_resource(GenerateAccumulationParticleEffectTimer(Timer::new(
             Duration::from_millis(200),
             TimerMode::Once,
@@ -61,7 +53,8 @@ fn main() {
         .add_startup_system(setup_ground)
         .add_startup_system(setup_ui_images)
         .add_startup_system(setup_game_sounds)
-        // Main Menu
+
+        // main menu
         .add_system_set(
             SystemSet::on_enter(GameState::MainMenu)
                 .with_system(setup_main_menu)
@@ -73,7 +66,8 @@ fn main() {
         .add_system_set(
             SystemSet::on_exit(GameState::MainMenu).with_system(despawn_screen::<OnMainMenuScreen>),
         )
-        // Playing
+
+        // playing
         .add_system_set(
             SystemSet::on_enter(GameState::Playing)
                 .with_system(clear_player)
@@ -86,7 +80,8 @@ fn main() {
                 .with_system(reset_prepare_jump_timer),
         )
         .add_system_set(game_playing_set_on_update)
-        // GameOver
+        
+        // gameover
         .add_system_set(SystemSet::on_enter(GameState::GameOver).with_system(setup_game_over_menu))
         .add_system_set(SystemSet::on_update(GameState::GameOver).with_system(click_button))
         .add_system_set(

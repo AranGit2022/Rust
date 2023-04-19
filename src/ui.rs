@@ -1,13 +1,5 @@
 use bevy::prelude::*;
-
 use crate::player::{JumpState, INITIAL_PLAYER_POS};
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub enum GameState {
-    MainMenu,
-    Playing,
-    GameOver,
-}
 
 #[derive(Debug, Resource)]
 pub struct UiImageHandles {
@@ -25,6 +17,13 @@ pub struct GameSounds {
     pub success: Handle<AudioSource>,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum GameState {
+    MainMenu,
+    Playing,
+    GameOver,
+}
+
 #[derive(Component)]
 pub enum MenuButtonAction {
     StartGame,
@@ -34,6 +33,7 @@ pub enum MenuButtonAction {
 
 #[derive(Component)]
 pub struct OnMainMenuScreen;
+
 #[derive(Component)]
 pub struct OnGameOverMenuScreen;
 
@@ -45,6 +45,7 @@ pub struct Scoreboard;
 
 #[derive(Debug, Resource)]
 pub struct ScoreUpQueue(pub Vec<ScoreUpEvent>);
+
 #[derive(Debug)]
 pub struct ScoreUpEvent {
     pub pos: Vec3,
@@ -96,13 +97,13 @@ pub fn setup_main_menu(mut commands: Commands, ui_images: Res<UiImageHandles>) {
                     ..default()
                 })
                 .with_children(|parent| {
-                    // 标题
+                    // title
                     parent.spawn(ImageBundle {
                         image: ui_images.title.clone().into(),
                         ..default()
                     });
 
-                    // 开始按钮
+                    // btn_start
                     parent.spawn((
                         ButtonBundle {
                             style: Style {
@@ -146,7 +147,7 @@ pub fn setup_game_over_menu(mut commands: Commands, ui_images: Res<UiImageHandle
                     ..default()
                 })
                 .with_children(|parent| {
-                    // 标题
+                    // title
                     parent.spawn(ImageBundle {
                         image: ui_images.title.clone().into(),
                         ..default()
@@ -162,7 +163,7 @@ pub fn setup_game_over_menu(mut commands: Commands, ui_images: Res<UiImageHandle
                             ..default()
                         })
                         .with_children(|parent| {
-                            // 返回按钮
+                            // btn_home
                             parent.spawn((
                                 ButtonBundle {
                                     style: Style {
@@ -178,7 +179,7 @@ pub fn setup_game_over_menu(mut commands: Commands, ui_images: Res<UiImageHandle
                                 MenuButtonAction::BackToMainMenu,
                             ));
 
-                            // 重新开始按钮
+                            // btn_restart
                             parent.spawn((
                                 ButtonBundle {
                                     style: Style {
@@ -239,7 +240,7 @@ pub fn update_scoreboard(score: Res<Score>, mut query: Query<&mut Text, With<Sco
     }
 }
 
-// 当摄像机或飘分效果坐标变化时进行同步
+// synchronization
 pub fn sync_score_up_effect(
     mut q_score_up_effect: Query<(&mut Style, &mut ScoreUpEffect)>,
     q_camera: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -258,8 +259,7 @@ pub fn sync_score_up_effect(
     }
 }
 
-// 向上移动飘分效果
-// TODO 边移动边增加透明度
+// score up effect
 pub fn shift_score_up_effect(
     mut commands: Commands,
     mut q_score_up_effect: Query<(Entity, &mut ScoreUpEffect)>,
@@ -273,7 +273,6 @@ pub fn shift_score_up_effect(
     }
 }
 
-// 创建飘分效果
 pub fn spawn_score_up_effect(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -283,7 +282,7 @@ pub fn spawn_score_up_effect(
     windows: Res<Windows>,
 ) {
     if jump_state.completed {
-        // 启动score up动画
+        // start animation
         for score_up_state in score_up_queue.0.iter_mut() {
             let (camera, camera_global_transform) = q_camera.single();
             let viewport_pos = camera

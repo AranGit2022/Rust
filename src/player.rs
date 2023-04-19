@@ -13,7 +13,6 @@ use crate::{
 
 pub const INITIAL_PLAYER_POS: Vec3 = Vec3::new(0.0, 1.5, 0.0);
 
-// 蓄力
 #[derive(Debug, Resource)]
 pub struct Accumulator(pub Option<Instant>);
 
@@ -23,16 +22,16 @@ pub struct AccumulationSoundController(pub Option<Handle<AudioSink>>);
 #[derive(Debug, Resource)]
 pub struct PrepareJumpTimer(pub Timer);
 
-// 跳跃状态
 #[derive(Debug, Resource)]
 pub struct JumpState {
     pub start_pos: Vec3,
     pub end_pos: Vec3,
-    // 跳跃动画时长，秒
+    // animation time
     pub animation_duration: f32,
     pub falled: bool,
     pub completed: bool,
 }
+
 impl Default for JumpState {
     fn default() -> Self {
         Self {
@@ -54,22 +53,18 @@ impl JumpState {
     }
 }
 
-// 摔落状态
 #[derive(Debug, Resource)]
 pub struct FallState {
     pub pos: Vec3,
     pub fall_type: FallType,
-    // 是否完成倾斜动作
     pub tilt_completed: bool,
-    // 是否所有动作完成
     pub completed: bool,
     pub played_sound: bool,
 }
 #[derive(Debug)]
 pub enum FallType {
-    // 笔直下落
     Straight,
-    // 先倾斜再下落，Vec3代表倾斜方向
+    // Vec3 = direction
     Tilt(Vec3),
 }
 impl Default for FallState {
@@ -155,17 +150,20 @@ pub fn player_jump(
     >,
 ) {
     if !prepare_jump_timer.0.finished() {
-        // 防止从主菜单点击进入Playing状态时立即跳一次
         return;
     }
-    // 如果上一跳未完成则忽略
+    // last jump isn't complete
     if buttons.just_pressed(MouseButton::Left) && jump_state.completed && fall_state.completed {
-        // 开始蓄力
+        // start accumulate
         accumulator.0 = time.last_update();
         accumulation_sound_controller.0 =
             Some(audio_sinks.get_handle(audio.play(game_sounds.accumulation.clone())));
     }
-    if buttons.just_released(MouseButton::Left) && jump_state.completed && fall_state.completed && accumulator.0.is_some() {
+    if buttons.just_released(MouseButton::Left)
+        && jump_state.completed
+        && fall_state.completed
+        && accumulator.0.is_some()
+    {
         if q_next_platform.is_empty() {
             warn!("There is no next platform");
             return;
@@ -175,7 +173,7 @@ pub fn player_jump(
         let (next_platform_entity, next_platform, next_platform_shape) = q_next_platform.single();
         let player = q_player.single();
 
-        // 计算跳跃后的落点位置
+        // land position
         let landing_pos = if (next_platform.translation.x - current_platform.translation.x) < 0.1 {
             Vec3::new(
                 player.translation.x,
@@ -194,23 +192,24 @@ pub fn player_jump(
         dbg!(player.translation);
         dbg!(accumulator.0.as_ref().unwrap().elapsed().as_secs_f32());
 
-        // 跳跃动画时长随距离而变化
+        // adjust jump animate time
         jump_state.animate_jump(
             player.translation,
             landing_pos,
             (accumulator.0.as_ref().unwrap().elapsed().as_secs_f32() / 2.0).max(0.5),
         );
 
-        // 蓄力极短，跳跃后仍在当前平台上
-        // 蓄力正常，跳跃到下一平台
+        // accumulate power and land on current/next platform
         if current_platform_shape.is_landed_on_platform(current_platform.translation, landing_pos)
             || next_platform_shape.is_landed_on_platform(next_platform.translation, landing_pos)
         {
             jump_state.falled = false;
             if next_platform_shape.is_landed_on_platform(next_platform.translation, landing_pos) {
-                // 分数加1
+                // score+1
                 score.0 += 1;
-                score_up_queue.0.push(ScoreUpEvent { pos: Vec3::new(landing_pos.x, landing_pos.y + 0.5, landing_pos.z) });
+                score_up_queue.0.push(ScoreUpEvent {
+                    pos: Vec3::new(landing_pos.x, landing_pos.y + 0.5, landing_pos.z),
+                });
 
                 commands
                     .entity(next_platform_entity)
@@ -223,7 +222,7 @@ pub fn player_jump(
                     .remove::<CurrentPlatform>();
             }
 
-        // 蓄力不足或蓄力过度，角色摔落
+        // accumulate too little or too much power, player falls
         } else {
             jump_state.falled = true;
             if current_platform_shape.is_touched_player(
@@ -263,7 +262,7 @@ pub fn player_jump(
             }
         }
 
-        // 结束蓄力
+        // stop accumulate
         accumulator.0 = None;
         match &accumulation_sound_controller.0 {
             Some(handle) => {
@@ -286,7 +285,7 @@ pub fn animate_jump(
     if !jump_state.completed {
         let mut player = q_player.single_mut();
 
-        // TODO 围绕中心点圆周?运动
+        // rotate around
         let around_point = Vec3::new(
             (jump_state.start_pos.x + jump_state.end_pos.x) / 2.0,
             (jump_state.start_pos.y + jump_state.end_pos.y) / 2.0,
@@ -309,7 +308,7 @@ pub fn animate_jump(
             player.translation = jump_state.end_pos;
             player.rotation = Quat::IDENTITY;
 
-            // 结束跳跃
+            // jump complete
             jump_state.completed = true;
             if !jump_state.falled {
                 audio.play(game_sounds.success.clone());
@@ -317,7 +316,7 @@ pub fn animate_jump(
         } else {
             player.translate_around(around_point, quat);
 
-            // 自身旋转
+            // rotate
             player.rotate_local_axis(
                 rotate_axis,
                 -(1.0 / jump_state.animation_duration) * TAU * time.delta_seconds(),
@@ -326,8 +325,7 @@ pub fn animate_jump(
     }
 }
 
-// 角色蓄力效果
-// TODO 蓄力过程中保持与平台相接触
+// player accumulation animate
 pub fn animate_player_accumulation(
     accumulator: Res<Accumulator>,
     mut q_player: Query<&mut Transform, With<Player>>,
@@ -364,7 +362,7 @@ pub fn animate_fall(
         match fall_state.fall_type {
             FallType::Straight => {
                 if player.translation.y < 0.5 {
-                    // 已摔落在地
+                    // already fall
                     fall_state.completed = true;
                     info!("Game over!");
                     game_state.set(GameState::GameOver).unwrap();
@@ -374,7 +372,7 @@ pub fn animate_fall(
             }
             FallType::Tilt(direction) => {
                 if !fall_state.tilt_completed {
-                    // 倾斜
+                    // tilt
                     let around_point = Vec3::new(
                         fall_state.pos.x,
                         INITIAL_PLAYER_POS.y - 0.5,
@@ -390,9 +388,9 @@ pub fn animate_fall(
                         player.rotate_around(around_point, quat);
                     }
                 } else {
-                    // 下坠
+                    // fall
                     if player.translation.y < 0.2 {
-                        // 已摔落在地
+                        // already fall
                         fall_state.completed = true;
                         info!("Game over!");
                         game_state.set(GameState::GameOver).unwrap();
@@ -415,7 +413,7 @@ pub fn animate_accumulation_particle_effect(
     q_player: Query<&Transform, (With<Player>, Without<ParticleEffect>)>,
 ) {
     if accumulator.0.is_some() {
-        // 生成粒子特效
+        // generate particle effect
         effect_timer.0.tick(time.delta());
         if effect_timer.0.just_finished() {
             let player = q_player.single();
@@ -472,7 +470,7 @@ pub fn animate_accumulation_particle_effect(
             effect_timer.0.reset();
         }
     } else {
-        // 关闭粒子特效
+        // close paticle effect
         for (entity, _, _) in &mut q_effect {
             commands.entity(entity).despawn();
         }

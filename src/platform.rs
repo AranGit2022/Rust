@@ -1,13 +1,10 @@
 use bevy::prelude::*;
 use rand::Rng;
-
 use crate::player::Accumulator;
 
-// 当前所站的平台
 #[derive(Debug, Component)]
 pub struct CurrentPlatform;
 
-// 下一个平台
 #[derive(Debug, Component)]
 pub struct NextPlatform;
 
@@ -22,7 +19,7 @@ impl PlatformShape {
             Self::Box => Mesh::from(shape::Box::new(1.5, 1.0, 1.5)),
         }
     }
-    // 是否落到平台上
+
     pub fn is_landed_on_platform(&self, platform_pos: Vec3, landing_pos: Vec3) -> bool {
         dbg!(platform_pos);
         dbg!(landing_pos);
@@ -33,7 +30,7 @@ impl PlatformShape {
             }
         }
     }
-    // 是否接触到角色
+
     pub fn is_touched_player(
         &self,
         platform_pos: Vec3,
@@ -67,8 +64,7 @@ pub fn setup_first_platform(
     ));
 }
 
-// 生成下一个平台
-// TODO 圆柱形平台
+// generate next platform
 pub fn generate_next_platform(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -109,7 +105,7 @@ pub fn generate_next_platform(
     }
 }
 
-// 平台蓄力效果
+// platform accumulation animate
 pub fn animate_platform_accumulation(
     accumulator: Res<Accumulator>,
     mut q_current_platform: Query<&mut Transform, With<CurrentPlatform>>,
@@ -122,7 +118,6 @@ pub fn animate_platform_accumulation(
                 (current_platform.scale.y - 0.15 * time.delta_seconds()).max(0.6);
         }
         None => {
-            // TODO 回弹效果
             current_platform.scale = Vec3::ONE;
         }
     }
